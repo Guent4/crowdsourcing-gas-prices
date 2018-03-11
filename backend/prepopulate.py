@@ -1,7 +1,10 @@
-import os
+import os, shutil
 import sys
 import json
 from django.conf import settings
+from django.core.files import File
+from django.contrib.staticfiles.storage import staticfiles_storage
+
 
 def populate_database():
     # delete all rows
@@ -10,22 +13,27 @@ def populate_database():
     Station.objects.all().delete()
     Upload.objects.all().delete()
 
+    shutil.rmtree('media')
+
     company, _ = Company.objects.get_or_create(
         companyname="exxon"
     )
-    sample_image_path = os.path.join(settings.STATIC_ROOT, 'prepopulate_sign.jpg')
-    image, _ = Image.imagefield(sample_image_path, f.read())
+    sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
+    image = Image()
+    image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+
     station, _ = Station.objects.get_or_create(
-        companyid = company.companyid,
+        companyid = company,
         latitude = 14.10618,
         longitude = -44.78551
     )
+
     Upload.objects.get_or_create(
         latitude = -27.83406,
         longitude = 137.13269,
-        stationid = station.stationid,  
+        stationid = station,  
         price = "1.99",
-        imageid = image.imageid
+        imageid = image
     )
 
 
