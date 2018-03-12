@@ -4,7 +4,7 @@ import json
 from django.conf import settings
 from django.core.files import File
 from django.contrib.staticfiles.storage import staticfiles_storage
-
+import datetime
 
 def populate_database():
     # delete all rows
@@ -31,6 +31,7 @@ def populate_database():
     Upload.objects.get_or_create(
         latitude = -27.83406,
         longitude = 137.13269,
+        timestamp = datetime.datetime.now(),
         stationid = station,  
         price = "1.99",
         imageid = image
