@@ -52,7 +52,8 @@ coverage.xml
 
 # Django stuff:
 *.log
-backend/local_settings.py
+backend/backend/local_settings.py
+edge/edge/local_settings.py
 
 # Flask stuff:
 instance/
