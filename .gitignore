@@ -54,6 +54,8 @@ coverage.xml
 *.log
 backend/backend/local_settings.py
 edge/edge/local_settings.py
+backend/app/migrations/*
+edge/app/migrations/*
 
 # Flask stuff:
 instance/

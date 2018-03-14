@@ -19,7 +19,7 @@ class Image(models.Model):
 
 class Station(models.Model):
     stationid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    companyid = models.ForeignKey(
+    company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE)
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
@@ -28,13 +28,13 @@ class Station(models.Model):
 
 class Upload(models.Model):
     uploadid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    timestamp = models.DateField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
-    stationid = models.ForeignKey(
+    station = models.ForeignKey(
         Station,
         on_delete=models.CASCADE)
     price = models.CharField(max_length=10)
-    imageid = models.ForeignKey(
+    image = models.ForeignKey(
         'Image',
         on_delete=models.CASCADE)
