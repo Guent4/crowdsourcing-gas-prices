@@ -46,7 +46,7 @@ def map(request):
             'longitude': o.longitude,
             'price': o.price,
             'timestamp': o.timestamp,
-            'companyname': o.stationid.companyid.companyname
+            'companyname': o.station.company.companyname
         }
         resp.append(d)
     return JsonResponse(resp, safe=False)
@@ -80,15 +80,13 @@ def edge_update(request):
             company, _ = Company.objects.get_or_create(
                 companyname=upload["companyname"]
             )
-            company_id = company.companyid
         else:
             company = company_in_db[0]
-            company_id = company_in_db[0].companyid
 
         distance_range = 0.05 # a gas station in 50 meters
         min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(upload_latitude, upload_longitude, distance_range)
         stations_in_db = Station.objects.filter(
-            companyid=company_id, 
+            company=company, 
             latitude__range=(
                 min_latitude,
                 max_latitude
@@ -101,7 +99,7 @@ def edge_update(request):
         if not stations_in_db.exists():
             # if there isn't a previously logged station within 50 meters of the same company, add new station
             station, _ = Station.objects.get_or_create(
-                companyid=company,
+                company=company,
                 latitude=upload["latitude"],
                 longitude=upload["longitude"]
             )
@@ -115,14 +113,14 @@ def edge_update(request):
             timestamp=cleaned_timestamp,
             latitude=upload["latitude"],
             longitude=upload["longitude"],
-            stationid=station,
+            station=station,
             price=upload["price"]
         )
         uploads_in_db = Upload.objects.filter(
             timestamp=potential_new_upload.timestamp,
             latitude=potential_new_upload.latitude,
             longitude=potential_new_upload.longitude,
-            stationid=potential_new_upload.stationid,
+            station=potential_new_upload.station,
             price=potential_new_upload.price
         )
         # print cleaned_timestamp
@@ -136,7 +134,7 @@ def edge_update(request):
             image_str_file.write(base64.decodestring(image_str))
             image = Image()
             image.imagefield.save('{}.jpg'.format(uuid.uuid4()), File(image_str_file))
-            potential_new_upload.imageid = image
+            potential_new_upload.image = image
 
             formatted_data.append(potential_new_upload)
 

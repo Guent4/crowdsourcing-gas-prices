@@ -23,7 +23,7 @@ def populate_database():
     image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
 
     station, _ = Station.objects.get_or_create(
-        companyid = company,
+        company = company,
         latitude = 14.10618,
         longitude = -44.78551
     )
@@ -32,9 +32,9 @@ def populate_database():
         latitude = -27.83406,
         longitude = 137.13269,
         timestamp = datetime.datetime.now(),
-        stationid = station,  
+        station = station,  
         price = "1.99",
-        imageid = image
+        image = image
     )
 
 
