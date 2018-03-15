@@ -56,6 +56,8 @@ backend/backend/local_settings.py
 edge/edge/local_settings.py
 backend/app/migrations/*
 edge/app/migrations/*
+backend/media/*
+edge/media/*
 
 # Flask stuff:
 instance/
