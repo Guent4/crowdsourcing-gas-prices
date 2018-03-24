@@ -37,6 +37,30 @@ def get_bounding_box(latitude, longitude, distancekm):
     return latitude - rough_distance, latitude + rough_distance, longitude - rough_distance, longitude + rough_distance
 
 
+def get_station_from_lat_long_companyname(latitude, longitude, distancekm, companyname):
+    # Check the company
+    company_in_db = Company.objects.filter(companyname=companyname)
+    if len(company_in_db) == 0:
+        company, _ = Company.objects.get_or_create(comapnyname=companyname)
+    else:
+        company = company_in_db[0]
+
+    # Check for station within 50m
+    distance_range = distancekm
+    min_lat, max_lat, min_long, max_long = get_bounding_box(latitude, longitude, distance_range)
+    stations_in_db = Station.objects.filter(
+        company=company,
+        latitude__range=(min_lat, max_lat),
+        longitude__range=(min_long, max_long)
+    )
+    if len(stations_in_db) == 0:
+        station, _ = Station.objects.get_or_create(company=company, latitude=latitude,longitude=longitude)
+    else:
+        station = stations_in_db[0]
+
+    return company, station
+
+
 # Create your views here.
 def index(request):
     print request.path
@@ -82,7 +106,6 @@ def company_mapping(request):
 @csrf_exempt
 @valid_request_methods(["POST"])
 def upload_gas_price(request):
-    assert request.method == "POST"
     data = json.loads(request.body)
 
     # Parse out the data
@@ -93,25 +116,8 @@ def upload_gas_price(request):
     companyname = data["companyname"]
     image_str = data["image"]
 
-    # Check the company
-    company_in_db = Company.objects.filter(companyname=companyname)
-    if len(company_in_db) == 0:
-        company, _ = Company.objects.get_or_create(comapnyname=companyname)
-    else:
-        company = company_in_db[0]
-
-    # Check for station within 50m
-    distance_range = 0.05
-    min_lat, max_lat, min_long, max_long = get_bounding_box(latitude, longitude, distance_range)
-    stations_in_db = Station.objects.filter(
-        company=company,
-        latitude__range=(min_lat, max_lat),
-        longitude__range = (min_long, max_long)
-    )
-    if len(stations_in_db) == 0:
-        station, _ = Station.objects.get_or_create(company=company, latitude=latitude,longitude=longitude)
-    else:
-        station = stations_in_db[0]
+    # Get (or insert) company and station
+    company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
 
     # Deal with the image
     image_str_file = StringIO.StringIO()
@@ -143,3 +149,38 @@ def upload_gas_price(request):
     Station.objects.filter(pk=station.stationid).update(latitude=latitude_new, longitude=longitude_new)
 
     return JsonResponse({"message": "success"})
+
+@csrf_exempt
+@valid_request_methods(["POST"])
+def backend_sync(request):
+    data = json.loads(request.body)
+    stations = data["stations"]
+    uploads = data["uploads"]
+
+    for s in stations:
+        latitude = float(s["latitude"])
+        longitude = float(s["longitude"])
+        companyname = s["companyname"]
+
+        # Get (or insert) company and station
+        company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
+
+    for u in uploads:
+        latitude = float(u["latitude"])
+        longitude = float(u["longitude"])
+        timestamp = dateutil.parser.parse(u["timestamp"])
+        companyname = u["companyname"]
+        price = float(u["price"])
+
+        # Get (or insert) company and station
+        company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
+
+        upload, _ = Upload.objects.get_or_create(
+            latitude=latitude,
+            longitude=longitude,
+            timestamp=timestamp,
+            station=station,
+            price=price
+        )
+
+        return JsonResponse({"message": "success"})

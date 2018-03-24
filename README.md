@@ -30,6 +30,6 @@ visit `localhost:8000`
 1.  Migrate the database
     1.  `python manage.py makemigrations`
     1.  `python manage.py migrate`
-    1.  `python prepopulate.py` to prepopulate the databse
+    1.  `python prepopulate.py` to prepopulate the database
 
 ### Client
