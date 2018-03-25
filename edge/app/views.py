@@ -4,9 +4,13 @@ from __future__ import unicode_literals
 import StringIO
 import base64
 import json
+import shutil
 import uuid
 
+import datetime
 import dateutil.parser
+import os
+from app import constants, cache
 from app.models import Upload, Company, Station, Image
 from django.core.files import File
 from django.http import HttpResponse, JsonResponse
@@ -29,6 +33,10 @@ def valid_request_methods(methods):
                 return func(request)
         return func_wrapper
     return func_decorator
+
+
+# Historical data handling
+historic_cache = cache.LRUCache(constants.CACHE_SIZE)
 
 
 # Helper methods
@@ -117,7 +125,7 @@ def upload_gas_price(request):
     image_str = data["image"]
 
     # Get (or insert) company and station
-    company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
+    company, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
 
     # Deal with the image
     image_str_file = StringIO.StringIO()
@@ -150,21 +158,20 @@ def upload_gas_price(request):
 
     return JsonResponse({"message": "success"})
 
+
 @csrf_exempt
 @valid_request_methods(["POST"])
 def backend_sync(request):
     data = json.loads(request.body)
-    stations = data["stations"]
     uploads = data["uploads"]
 
-    for s in stations:
-        latitude = float(s["latitude"])
-        longitude = float(s["longitude"])
-        companyname = s["companyname"]
+    # Clear all of the stored images
+    Image.objects.all().delete()
+    if os.path.exists("media"):
+        shutil.rmtree("media")
+    os.makedirs("media")
 
-        # Get (or insert) company and station
-        company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
-
+    # Go through all of the uploads
     for u in uploads:
         latitude = float(u["latitude"])
         longitude = float(u["longitude"])
@@ -173,7 +180,16 @@ def backend_sync(request):
         price = float(u["price"])
 
         # Get (or insert) company and station
-        company, station = get_station_from_lat_long_companyname(latitude, longitude, 0.05, companyname)
+        company, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+        # Is this station supposed to contain historical data?
+        if historic_cache.contains(station.stationid):
+            # This is something we want to delete data that is too old for
+            timestamp_threshold = datetime.datetime.now() - datetime.timedelta(days=constants.HISTORICAL_DAYS)
+            Upload.objects.filter(station=station, timestamp__lt=timestamp_threshold).delete()
+        else:
+            # Clear all old data
+            Upload.objects.filter(station=station).delete()
 
         upload, _ = Upload.objects.get_or_create(
             latitude=latitude,
@@ -183,4 +199,4 @@ def backend_sync(request):
             price=price
         )
 
-        return JsonResponse({"message": "success"})
+    return JsonResponse({"message": "success"})

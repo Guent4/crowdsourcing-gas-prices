@@ -37,7 +37,7 @@ class Upload(models.Model):
     price = models.CharField(max_length=10)
     image = models.ForeignKey(
         'Image',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
