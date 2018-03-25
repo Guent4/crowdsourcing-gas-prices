@@ -31,5 +31,8 @@ visit `localhost:8000`
     1.  `python manage.py makemigrations`
     1.  `python manage.py migrate`
     1.  `python prepopulate.py` to prepopulate the database
+1.  Miscellaneous installs
+    1.  `pip install requests`
+
 
 ### Client

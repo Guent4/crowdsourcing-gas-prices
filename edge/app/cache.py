@@ -77,7 +77,7 @@ class DoubleList(object):
 class LRUCache(object):
     def __init__(self, size):
         self.size = size
-        self.ddl = DoubleList()
+        self.dll = DoubleList()
         self.hm = dict()
 
     def contains(self, key):
@@ -100,14 +100,14 @@ class LRUCache(object):
     def entry(self, key, data):
         old_key = None
         if self.contains(key):
-            self.ddl.remove_by_node(self.hm[key])
+            self.dll.remove_by_node(self.hm[key])
             del self.hm[key]
-        elif self.ddl.length == self.size:
-            old_tail = self.ddl.remove_tail()
+        elif self.dll.length == self.size:
+            old_tail = self.dll.remove_tail()
             old_key = old_tail.data
             del self.hm[old_key]
 
-        new_node = self.ddl.prepend(key)
+        new_node = self.dll.prepend(key)
         self.hm[key] = {"node": new_node, "data": data}
 
         return old_key

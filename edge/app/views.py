@@ -3,14 +3,17 @@ from __future__ import unicode_literals
 
 import StringIO
 import base64
+import datetime
 import json
+import os
 import shutil
+import threading
 import uuid
 
-import datetime
+import constants
 import dateutil.parser
-import os
-from app import constants, cache
+import requests
+from app import cache
 from app.models import Upload, Company, Station, Image
 from django.core.files import File
 from django.http import HttpResponse, JsonResponse
@@ -37,6 +40,9 @@ def valid_request_methods(methods):
 
 # Historical data handling
 historic_cache = cache.LRUCache(constants.CACHE_SIZE)
+historic_status = dict()            # Key = stationid, value = True if now have the historical data for a station
+historic_lock = threading.Lock()
+historic_cv = threading.Condition(historic_lock)
 
 
 # Helper methods
@@ -109,6 +115,37 @@ def company_mapping(request):
         resp.append({"companyid": company.companyid, "companyname": company.companyname})
 
     return JsonResponse(resp, safe=False)
+
+
+@valid_request_methods(["GET"])
+def historical(request):
+    latitude = float(request.GET["latitude"])
+    longitude = float(request.GET["longitude"])
+    companyname = float(request.GET["companyname"])
+
+    # Find the specified station and
+    _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+    # See if edge doesn't contains the historical data
+    if not historic_cache.contains(station.stationid):
+        # Make request to the /edge_historical endpoint on the backend
+        data = {"latitude": latitude, "longitude": longitude, "companyname": companyname}
+        requests.post(url=constants.BACKEND_ENDPOINT, data=data)
+        with historic_cv:
+            while not historic_cache.contains(station.stationid):
+                historic_cv.wait()
+
+    historic = []
+    for upload in Upload.objects.filter(station=station):
+        historic.append({
+            "latitude": str(upload.latitude),
+            "longitude": str(upload.longitude),
+            "timestamp": upload.timestamp.isoformat(),
+            "price": upload.price,
+            "companyname": upload.station.company.companyname
+        })
+
+    return JsonResponse(historic, safe=False)
 
 
 @csrf_exempt
@@ -198,5 +235,45 @@ def backend_sync(request):
             station=station,
             price=price
         )
+
+    return JsonResponse({"message": "success"})
+
+
+@csrf_exempt
+@valid_request_methods(["POST"])
+def historical_backend(request):
+    data = json.loads(request.body)
+    uploads = data["uploads"]
+
+    # Clear all of the stored images
+    Image.objects.all().delete()
+    if os.path.exists("media"):
+        shutil.rmtree("media")
+    os.makedirs("media")
+
+    # Go through all of the uploads
+    for u in uploads:
+        latitude = float(u["latitude"])
+        longitude = float(u["longitude"])
+        timestamp = dateutil.parser.parse(u["timestamp"])
+        companyname = u["companyname"]
+        price = float(u["price"])
+
+        # Get (or insert) company and station
+        _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+        # Create the upload
+        upload, _ = Upload.objects.get_or_create(
+            latitude=latitude,
+            longitude=longitude,
+            timestamp=timestamp,
+            station=station,
+            price=price
+        )
+
+        # Mark as being historical
+        historic_cache.entry(station.stationid, None)
+        with historic_lock:
+            historic_cv.notify_all()
 
     return JsonResponse({"message": "success"})
