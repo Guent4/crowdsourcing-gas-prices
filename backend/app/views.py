@@ -163,3 +163,27 @@ def edge_update(request):
 
 
     return JsonResponse({"message": message})
+
+
+def edge_historical(request):
+    user_latitude = float(request.GET['latitude'])
+    user_longitude = float(request.GET['longitude'])
+    company_name = request.GET["companyname"]
+    
+    min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(user_latitude, user_longitude, 10)
+    uploads_about_station = Upload.objects.filter(
+        station__company__companyname__contains=company_name,
+        latitude__range=(min_latitude, max_latitude),
+        longitude__range=(min_longitude, max_longitude)
+    )
+    resp = []
+    for o in uploads_about_station:
+        d = {
+            'latitude': o.latitude,
+            'longitude': o.longitude,
+            'price': o.price,
+            'timestamp': o.timestamp,
+            'companyname': o.station.company.companyname
+        }
+        resp.append(d)
+    return JsonResponse(resp, safe=False)
