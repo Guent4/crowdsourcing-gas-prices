@@ -14,6 +14,20 @@ import dateutil.parser
 import base64
 from django.core.files import File
 
+def valid_request_methods(methods):
+    """
+    Decorator for checking to make sure got the right HTTP method
+    :param methods: List of acceptable HTTP methods
+    :return: Decorator
+    """
+    def func_decorator(func):
+        def func_wrapper(request):
+            if request.method not in methods:
+                return JsonResponse({"message": "Expected {}, but got {}".format(", ".join(methods), request.method)}, status=400)
+            else:
+                return func(request)
+        return func_wrapper
+    return func_decorator
 
 def index(request):
     return JsonResponse({"message": "This is just the index page"})
@@ -25,8 +39,8 @@ def get_bounding_box(latitude, longitude, distancekm):
 def map(request):
     user_latitude = float(request.GET['latitude'])
     user_longitude = float(request.GET['longitude'])
+    distance_range = float(request.GET["range"])
 
-    distance_range = 30
     min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(user_latitude, user_longitude, distance_range)
     
     objs_within = Upload.objects.filter(
@@ -149,3 +163,27 @@ def edge_update(request):
 
 
     return JsonResponse({"message": message})
+
+
+def edge_historical(request):
+    user_latitude = float(request.GET['latitude'])
+    user_longitude = float(request.GET['longitude'])
+    company_name = request.GET["companyname"]
+    
+    min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(user_latitude, user_longitude, 10)
+    uploads_about_station = Upload.objects.filter(
+        station__company__companyname__contains=company_name,
+        latitude__range=(min_latitude, max_latitude),
+        longitude__range=(min_longitude, max_longitude)
+    )
+    resp = []
+    for o in uploads_about_station:
+        d = {
+            'latitude': o.latitude,
+            'longitude': o.longitude,
+            'price': o.price,
+            'timestamp': o.timestamp,
+            'companyname': o.station.company.companyname
+        }
+        resp.append(d)
+    return JsonResponse(resp, safe=False)
