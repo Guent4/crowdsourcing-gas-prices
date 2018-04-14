@@ -1,13 +1,14 @@
 # crowdsourcing gas prices
 
 ### Backend
-install PostgresSQL, create db called `backend`
-
-add `localsettings.py` with db info to `/backend/backend`
-
-`python manage.py runserver`
-
-visit `localhost:8000`
+1.  Make sure you have Python 2.7
+1.  Install postgres (on Windows)
+    1.  During installation, remember the port, username, and password
+    1.  Open pgAdmin, and create a database named `backend`
+1.  `pip install -r requirements.txt`
+1. Create `local_settings.py` file from the template called `local_settings.txt` and put it into /app
+1. Set up db with `python manage.py migrate` `python prepopulate.py`
+1.  `python manage.py runserver`
 
 ### Edge
 
