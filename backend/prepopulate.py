@@ -4,9 +4,15 @@ import json
 from django.conf import settings
 from django.core.files import File
 from django.contrib.staticfiles.storage import staticfiles_storage
-import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
+import pytz
+
+import random
 
 def populate_database():
+    random.seed(42)
+
     # delete all rows
     Company.objects.all().delete()
     Image.objects.all().delete()
@@ -15,27 +21,41 @@ def populate_database():
 
     shutil.rmtree('media')
 
-    company, _ = Company.objects.get_or_create(
-        companyname="exxon"
-    )
-    sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
-    image = Image()
-    image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+    canonical_lat = 42.4439617
+    canonical_long = -76.5029963
+    companies = ["exxon", "mobil", "shell", "sunoco"]
+    fake_data_size = 100
 
-    station, _ = Station.objects.get_or_create(
-        company = company,
-        latitude = 14.10618,
-        longitude = -44.78551
-    )
+    for i in range(fake_data_size):
+        # pick random company
+        company, _ = Company.objects.get_or_create(
+            companyname=random.choice(companies)
+        )
 
-    Upload.objects.get_or_create(
-        latitude = -27.83406,
-        longitude = 137.13269,
-        timestamp = datetime.datetime.now(),
-        station = station,  
-        price = "1.99",
-        image = image
-    )
+        # use the same image for etsting
+        sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
+        image = Image()
+        image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+
+        # create random station location
+        flt = float(random.randint(-50,50))
+        dec_lat = random.random()/100
+        dec_lon = random.random()/100
+
+        station, _ = Station.objects.get_or_create(
+            company = company,
+            latitude = canonical_lat + dec_lat,
+            longitude = canonical_long + dec_lon
+        )
+
+        Upload.objects.get_or_create(
+            latitude = canonical_lat + dec_lat,
+            longitude = canonical_long + dec_lon,
+            timestamp = timezone.now() + timedelta(days=random.randint(-5, 5)),
+            station = station,  
+            price = round(random.uniform(0, 5), 2),
+            image = image
+        )
 
 
 # Start execution here!
