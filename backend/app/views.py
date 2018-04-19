@@ -86,6 +86,8 @@ def edge_update(request):
     # d = request.data
 
     for upload in edge_data_list:
+        if "image" not in upload:
+            continue
         upload_latitude = float(upload["latitude"])
         upload_longitude = float(upload["longitude"])
         company_in_db = Company.objects.filter(companyname = upload["companyname"])
