@@ -24,9 +24,15 @@ def populate_database():
     canonical_lat = 42.4439617
     canonical_long = -76.5029963
     companies = ["exxon", "mobil", "shell", "sunoco"]
-    fake_data_size = 100
+    fake_data_size = 1000
+    station_range = 5000
+
+
+    new_uploads = []
 
     for i in range(fake_data_size):
+        if i % 100 == 0:
+            print i
         # pick random company
         company, _ = Company.objects.get_or_create(
             companyname=random.choice(companies)
@@ -38,9 +44,9 @@ def populate_database():
         image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
 
         # create random station location
-        flt = float(random.randint(-50,50))
-        dec_lat = random.random()/100
-        dec_lon = random.random()/100
+        flt = float(random.randint(-station_range,station_range))
+        dec_lat = flt/100
+        dec_lon = flt/100
 
         station, _ = Station.objects.get_or_create(
             company = company,
@@ -48,7 +54,7 @@ def populate_database():
             longitude = canonical_long + dec_lon
         )
 
-        Upload.objects.get_or_create(
+        new_upload = Upload(
             latitude = canonical_lat + dec_lat,
             longitude = canonical_long + dec_lon,
             timestamp = timezone.now() + timedelta(days=random.randint(-5, 5)),
@@ -56,7 +62,9 @@ def populate_database():
             price = round(random.uniform(0, 5), 2),
             image = image
         )
+        new_uploads.append(new_upload)
 
+    Upload.objects.bulk_create(new_uploads)
 
 # Start execution here!
 if __name__ == '__main__':
