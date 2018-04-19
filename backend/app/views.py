@@ -52,7 +52,7 @@ def map(request):
             min_longitude,
             max_longitude
         )
-    ).select_related('station__company')
+    ).order_by('station', '-timestamp').distinct('station').select_related('station__company')
     resp = []
     for o in objs_within:
         d = {
@@ -164,7 +164,7 @@ def edge_update(request):
         message = "db already had data"
     print message
 
-    objs_within = Upload.objects.select_related('station__company')
+    objs_within = Upload.objects.order_by('station', '-timestamp').distinct('station').select_related('station__company')
     resp = []
     for o in objs_within:
         d = {

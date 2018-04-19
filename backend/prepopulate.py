@@ -30,41 +30,83 @@ def populate_database():
 
     new_uploads = []
 
-    for i in range(fake_data_size):
-        if i % 100 == 0:
-            print i
-        # pick random company
-        company, _ = Company.objects.get_or_create(
-            companyname=random.choice(companies)
-        )
+    # for i in range(fake_data_size):
+    #     if i % 100 == 0:
+    #         print i
+    #     # pick random company
+    #     company, _ = Company.objects.get_or_create(
+    #         companyname=random.choice(companies)
+    #     )
 
-        # use the same image for etsting
-        sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
-        image = Image()
-        image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+    #     # use the same image for etsting
+    #     sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
+    #     image = Image()
+    #     image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
 
-        # create random station location
-        flt = float(random.randint(-station_range,station_range))
-        dec_lat = flt/100
-        dec_lon = flt/100
+    #     # create random station location
+    #     dec_lat = float(random.randint(-station_range,station_range))/100
+    #     dec_lon = float(random.randint(-station_range,station_range))/100
 
-        station, _ = Station.objects.get_or_create(
-            company = company,
-            latitude = canonical_lat + dec_lat,
-            longitude = canonical_long + dec_lon
-        )
+    #     station, _ = Station.objects.get_or_create(
+    #         company = company,
+    #         latitude = canonical_lat + dec_lat,
+    #         longitude = canonical_long + dec_lon
+    #     )
 
-        new_upload = Upload(
-            latitude = canonical_lat + dec_lat,
-            longitude = canonical_long + dec_lon,
-            timestamp = timezone.now() + timedelta(days=random.randint(-5, 5)),
-            station = station,  
-            price = round(random.uniform(0, 5), 2),
-            image = image
-        )
-        new_uploads.append(new_upload)
+    #     new_upload = Upload(
+    #         latitude = canonical_lat + dec_lat,
+    #         longitude = canonical_long + dec_lon,
+    #         timestamp = timezone.now() + timedelta(days=random.randint(-5, 5)),
+    #         station = station,  
+    #         price = round(random.uniform(0, 5), 2),
+    #         image = image
+    #     )
+    #     new_uploads.append(new_upload)
 
-    Upload.objects.bulk_create(new_uploads)
+    company, _ = Company.objects.get_or_create(
+        companyname=random.choice(companies)
+    )
+
+    sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
+    image = Image()
+    image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+
+    station1, _ = Station.objects.get_or_create(
+        company = company,
+        latitude = canonical_lat,
+        longitude = canonical_long
+    )
+
+    station2, _ = Station.objects.get_or_create(
+        company = company,
+        latitude = canonical_lat+0.01,
+        longitude = canonical_long+0.01
+    )
+
+    upload = Upload.objects.get_or_create(
+        latitude = canonical_lat,
+        longitude = canonical_long,
+        timestamp = timezone.now(),
+        station = station1,  
+        price = 1,
+        image = image
+    )
+    upload = Upload.objects.get_or_create(
+        latitude = canonical_lat,
+        longitude = canonical_long,
+        timestamp = timezone.now() + timedelta(days=1),
+        station = station1,  
+        price = 2,
+        image = image
+    )
+    upload = Upload.objects.get_or_create(
+        latitude = canonical_lat+0.01,
+        longitude = canonical_long+0.01,
+        timestamp = timezone.now(),
+        station = station2,  
+        price = 1,
+        image = image
+    )
 
 # Start execution here!
 if __name__ == '__main__':
