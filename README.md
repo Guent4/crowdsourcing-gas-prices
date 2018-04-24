@@ -17,7 +17,7 @@
     1.  `sudo apt-get update` then `sudo apt-get install postgresql postgresql-contrib`
     1.  To start postgres: `sudo service postgresql start`
     1.  To log into postgres: `sudo -i -u postgres` followed by `psql`
-    1.  Set the password: `\password postgres`
+    1.  Set the password: a`\password postgres`
     1.  Create a database named `edge` via: `CREATE DATABASE edge;`.  Verify that it was created by `\l`
     1.  Use `\c edge` to connect to the database and use `\dt` to display the tables      
 1.  Install Django

@@ -1,16 +1,18 @@
-import os, shutil
-import sys
-import json
-from django.conf import settings
-from django.core.files import File
-from django.contrib.staticfiles.storage import staticfiles_storage
-from datetime import datetime, timedelta
-from django.utils import timezone
-import pytz
-
+import datetime
+import os
 import random
+import shutil
+import sys
 
-def populate_database():
+from geopy import units
+
+
+def get_bounding_box(latitude, longitude, distancekm):
+    rough_distance = units.degrees(arcminutes=units.nautical(kilometers=distancekm)) * 2
+    return latitude - rough_distance, latitude + rough_distance, longitude - rough_distance, longitude + rough_distance
+
+
+def populate_database(num_locations, distance_range):
     random.seed(42)
 
     # delete all rows
@@ -19,102 +21,67 @@ def populate_database():
     Station.objects.all().delete()
     Upload.objects.all().delete()
 
-    shutil.rmtree('media')
+    if os.path.exists("media"):
+        shutil.rmtree("media")
 
-    canonical_lat = 42.4439617
-    canonical_long = -76.5029963
-    companies = ["exxon", "mobil", "shell", "sunoco"]
-    fake_data_size = 1000
-    station_range = 5000
+    # Some constants
+    LATITUDE = 42.442445
+    LONGITUDE = -76.485146
+    PRICE_MIN = 2.0
+    PRICE_MAX = 2.5
+    COMPANIES = ["exxon", "mobil", "shell", "sunoco", "kwikfill", "bp", "chevron", "speedway", "wawa"]
 
+    # So we can batch create
+    uploads = []
 
-    new_uploads = []
+    latitude_min, latitude_max, longitude_min, longitude_max = get_bounding_box(LATITUDE, LONGITUDE, distance_range)
+    print(num_locations)
+    for i in range(num_locations):
+        if i % 10 == 0:
+            print i
 
-    # for i in range(fake_data_size):
-    #     if i % 100 == 0:
-    #         print i
-    #     # pick random company
-    #     company, _ = Company.objects.get_or_create(
-    #         companyname=random.choice(companies)
-    #     )
+        companyname = random.choice(COMPANIES)
+        latitude = random.uniform(latitude_min, latitude_max)
+        longitude = random.uniform(longitude_min, longitude_max)
+        price = random.uniform(PRICE_MIN, PRICE_MAX)
 
-    #     # use the same image for etsting
-    #     sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
-    #     image = Image()
-    #     image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
+        # pick random company
+        company, _ = Company.objects.get_or_create(
+            companyname=companyname
+        )
 
-    #     # create random station location
-    #     dec_lat = float(random.randint(-station_range,station_range))/100
-    #     dec_lon = float(random.randint(-station_range,station_range))/100
+        # use the same image for etsting
+        # sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
+        # image = Image()
+        # image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
 
-    #     station, _ = Station.objects.get_or_create(
-    #         company = company,
-    #         latitude = canonical_lat + dec_lat,
-    #         longitude = canonical_long + dec_lon
-    #     )
+        # create random station location
+        station, _ = Station.objects.get_or_create(
+            company=company,
+            latitude=latitude,
+            longitude=longitude
+        )
 
-    #     new_upload = Upload(
-    #         latitude = canonical_lat + dec_lat,
-    #         longitude = canonical_long + dec_lon,
-    #         timestamp = timezone.now() + timedelta(days=random.randint(-5, 5)),
-    #         station = station,  
-    #         price = round(random.uniform(0, 5), 2),
-    #         image = image
-    #     )
-    #     new_uploads.append(new_upload)
+        for _ in range(random.randint(2, 5)):
+            uploads.append(Upload(
+                latitude=latitude,
+                longitude=longitude,
+                timestamp=datetime.datetime.now() + datetime.timedelta(days=random.randint(-5, 0), hours=random.randint(-24, 0)),
+                station=station,
+                price=round(random.uniform(0, 5), 2)
+            ))
 
-    company, _ = Company.objects.get_or_create(
-        companyname=random.choice(companies)
-    )
+    # Batch create
+    Upload.objects.bulk_create(uploads)
 
-    sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
-    image = Image()
-    image.imagefield.save('prepopulate_sign.jpg', File(open(sample_image_path, 'rb')))
-
-    station1, _ = Station.objects.get_or_create(
-        company = company,
-        latitude = canonical_lat,
-        longitude = canonical_long
-    )
-
-    station2, _ = Station.objects.get_or_create(
-        company = company,
-        latitude = canonical_lat+0.01,
-        longitude = canonical_long+0.01
-    )
-
-    upload = Upload.objects.get_or_create(
-        latitude = canonical_lat,
-        longitude = canonical_long,
-        timestamp = timezone.now(),
-        station = station1,  
-        price = 1,
-        image = image
-    )
-    upload = Upload.objects.get_or_create(
-        latitude = canonical_lat,
-        longitude = canonical_long,
-        timestamp = timezone.now() + timedelta(days=1),
-        station = station1,  
-        price = 2,
-        image = image
-    )
-    upload = Upload.objects.get_or_create(
-        latitude = canonical_lat+0.01,
-        longitude = canonical_long+0.01,
-        timestamp = timezone.now(),
-        station = station2,  
-        price = 1,
-        image = image
-    )
 
 # Start execution here!
 if __name__ == '__main__':
     reload(sys)
     sys.setdefaultencoding("utf-8")
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.local_settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 
     import django
     django.setup()
     from app.models import Company, Image, Station, Upload
-    populate_database()
+    populate_database(int(sys.argv[1]), int(sys.argv[2]))
