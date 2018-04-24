@@ -52,7 +52,7 @@ def map(request):
             min_longitude,
             max_longitude
         )
-    ).select_related('stationid__companyid')
+    ).order_by('station', '-timestamp').distinct('station').select_related('station__company')
     resp = []
     for o in objs_within:
         d = {
@@ -63,7 +63,7 @@ def map(request):
             'companyname': o.station.company.companyname
         }
         resp.append(d)
-    return JsonResponse(resp, safe=False)
+    return JsonResponse({"data": resp})
 
 def company_mapping(request):
     companies = Company.objects.all()
@@ -74,7 +74,7 @@ def company_mapping(request):
         comp_dict['companyname'] = c.companyname
         resp.append(comp_dict)
 
-    return JsonResponse(resp, safe=False)
+    return JsonResponse({"data": resp})
 
 from django.views.decorators.csrf import csrf_exempt
 # remove when deploy
@@ -162,9 +162,20 @@ def edge_update(request):
         message = "updated db"
     else:
         message = "db already had data"
+    print message
 
-
-    return JsonResponse({"message": message})
+    objs_within = Upload.objects.order_by('station', '-timestamp').distinct('station').select_related('station__company')
+    resp = []
+    for o in objs_within:
+        d = {
+            'latitude': o.latitude,
+            'longitude': o.longitude,
+            'price': o.price,
+            'timestamp': o.timestamp,
+            'companyname': o.station.company.companyname
+        }
+        resp.append(d)
+    return JsonResponse({"data": resp})
 
 
 def edge_historical(request):
@@ -188,4 +199,6 @@ def edge_historical(request):
             'companyname': o.station.company.companyname
         }
         resp.append(d)
-    return JsonResponse(resp, safe=False)
+
+
+    return JsonResponse({"data": resp})
