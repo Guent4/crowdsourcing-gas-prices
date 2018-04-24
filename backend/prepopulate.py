@@ -4,9 +4,8 @@ import random
 import shutil
 import sys
 
-from geopy import units
-
 from django.utils import timezone
+from geopy import units
 
 
 def get_bounding_box(latitude, longitude, distancekm):
@@ -45,7 +44,7 @@ def populate_database(num_locations, distance_range):
         companyname = random.choice(COMPANIES)
         latitude = random.uniform(latitude_min, latitude_max)
         longitude = random.uniform(longitude_min, longitude_max)
-        price = random.uniform(PRICE_MIN, PRICE_MAX)
+        price = round(random.uniform(PRICE_MIN, PRICE_MAX), 2)
 
         # pick random company
         company, _ = Company.objects.get_or_create(
@@ -70,7 +69,7 @@ def populate_database(num_locations, distance_range):
                 longitude=longitude,
                 timestamp=timezone.now() + datetime.timedelta(days=random.randint(-5, 0), hours=random.randint(-24, 0)),
                 station=station,
-                price=round(random.uniform(0, 5), 2)
+                price=price
             ))
 
     # Batch create

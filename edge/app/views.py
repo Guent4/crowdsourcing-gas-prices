@@ -8,16 +8,20 @@ import json
 import os
 import shutil
 import threading
+import urllib
 import uuid
+import json
 
 import constants
 import dateutil.parser
 import requests
 from app import cache
 from app.models import Upload, Company, Station, Image
+from edge.settings import MEDIA_ROOT
 from django.core.files import File
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
 from geopy import units
 
 
@@ -55,7 +59,7 @@ def get_station_from_lat_long_companyname(latitude, longitude, distancekm, compa
     # Check the company
     company_in_db = Company.objects.filter(companyname=companyname)
     if len(company_in_db) == 0:
-        company, _ = Company.objects.get_or_create(comapnyname=companyname)
+        company, _ = Company.objects.get_or_create(companyname=companyname)
     else:
         company = company_in_db[0]
 
@@ -76,9 +80,72 @@ def get_station_from_lat_long_companyname(latitude, longitude, distancekm, compa
 
 
 # Create your views here.
+@csrf_exempt
 def index(request):
     print request.path
     return HttpResponse("Hello, world. You're at the edge index.")
+
+
+@valid_request_methods(["GET"])
+def initiate_sync(request):
+    """ THIS ISN'T AN EXPOSED ENDPOINT """
+    try:
+        all_uploads = Upload.objects.all()
+
+        to_be_sent_uploads = []
+        for upload in all_uploads:
+            to_be_sent_upload = {
+                "latitude": str(upload.latitude),
+                "longitude": str(upload.longitude),
+                "timestamp": upload.timestamp.isoformat(),
+                "price": upload.price,
+                "companyname": upload.station.company.companyname,
+            }
+            if upload.image is not None:
+
+                with default_storage.open(os.path.join(MEDIA_ROOT, str(upload.image.imagefield)), "rb") as i:
+                    to_be_sent_upload["image"] = base64.b64encode(i.read())
+            to_be_sent_uploads.append(to_be_sent_upload)
+
+        data = {"data": to_be_sent_uploads}
+        r = requests.post(url="{}/edge_update".format(constants.BACKEND_ENDPOINT), json=data)
+
+        # Clear all of the stored images
+        Image.objects.all().delete()
+        if os.path.exists("media"):
+            shutil.rmtree("media")
+        os.makedirs("media")
+
+        # Delete all non-historical data
+        historic_stationids = historic_cache.all_entries()
+        for stationid in historic_stationids:
+            station = Station.objects.filter(stationid=stationid)
+            Upload.objects.filter(station=station).delete()
+            station.delete()
+
+        data_for_all_stations = json.loads(r.content)["data"]
+        for s in data_for_all_stations:
+            latitude = float(s["latitude"])
+            longitude = float(s["longitude"])
+            timestamp = dateutil.parser.parse(s["timestamp"])
+            companyname = s["companyname"]
+            price = float(s["price"])
+
+            # Get (or insert) company and station
+            _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+            # Create the upload
+            upload, _ = Upload.objects.get_or_create(
+                latitude=latitude,
+                longitude=longitude,
+                timestamp=timestamp,
+                station=station,
+                price=price
+            )
+
+        return JsonResponse({"message": "success"})
+    except Exception as e:
+        return JsonResponse({"message": "failure: {}".format(e)})
 
 
 @valid_request_methods(["GET"])
@@ -104,8 +171,9 @@ def map(request):
                 "timestamp": o.timestamp,
                 "companyname": o.station.company.companyname
             }
+    response = {"data": resp_dict.values()}
 
-    return JsonResponse(resp_dict.values(), safe=False)
+    return JsonResponse(response)
 
 
 @valid_request_methods(["GET"])
@@ -113,39 +181,70 @@ def company_mapping(request):
     resp = []
     for company in Company.objects.all():
         resp.append({"companyid": company.companyid, "companyname": company.companyname})
+    response = {"data": resp}
 
-    return JsonResponse(resp, safe=False)
+    return JsonResponse(response)
 
 
 @valid_request_methods(["GET"])
 def historical(request):
     latitude = float(request.GET["latitude"])
     longitude = float(request.GET["longitude"])
-    companyname = float(request.GET["companyname"])
+    companyname = request.GET["companyname"]
 
     # Find the specified station and
     _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
 
+    if station is None:
+        return JsonResponse({"data": []})
+
     # See if edge doesn't contains the historical data
-    if not historic_cache.contains(station.stationid):
+    historic = []
+    if historic_cache.contains(station.stationid):
+        for upload in Upload.objects.filter(station=station):
+            historic.append({
+                "latitude": str(upload.latitude),
+                "longitude": str(upload.longitude),
+                "timestamp": upload.timestamp.isoformat(),
+                "price": upload.price,
+                "companyname": upload.station.company.companyname
+            })
+    else:
         # Make request to the /edge_historical endpoint on the backend
         data = {"latitude": latitude, "longitude": longitude, "companyname": companyname}
-        requests.post(url=constants.BACKEND_ENDPOINT, data=data)
-        with historic_cv:
-            while not historic_cache.contains(station.stationid):
-                historic_cv.wait()
+        r = requests.get(url="{}/edge_historical".format(constants.BACKEND_ENDPOINT), params=urllib.urlencode(data))
+        historic = json.loads(r.content)["data"]
+        uploads = []
+        station = None
+        for u in historic:
+            latitude = float(u["latitude"])
+            longitude = float(u["longitude"])
+            timestamp = dateutil.parser.parse(u["timestamp"])
+            companyname = u["companyname"]
+            price = float(u["price"])
 
-    historic = []
-    for upload in Upload.objects.filter(station=station):
-        historic.append({
-            "latitude": str(upload.latitude),
-            "longitude": str(upload.longitude),
-            "timestamp": upload.timestamp.isoformat(),
-            "price": upload.price,
-            "companyname": upload.station.company.companyname
-        })
+            # Get (or insert) company and station
+            if station is None:
+                _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
 
-    return JsonResponse(historic, safe=False)
+            # Create the upload
+            uploads.append(Upload(
+                latitude=latitude,
+                longitude=longitude,
+                timestamp=timestamp,
+                station=station,
+                price=price
+            ))
+
+        Upload.objects.bulk_create(uploads)
+
+    # Sort it
+    historic = list(sorted(historic, key=lambda x: x["timestamp"]))
+
+    # Mark in cache
+    historic_cache.entry(station.stationid)
+
+    return JsonResponse({"data": historic})
 
 
 @csrf_exempt
@@ -228,13 +327,16 @@ def backend_sync(request):
             # Clear all old data
             Upload.objects.filter(station=station).delete()
 
-        upload, _ = Upload.objects.get_or_create(
+        # Create the upload
+        uploads.append(Upload(
             latitude=latitude,
             longitude=longitude,
             timestamp=timestamp,
             station=station,
             price=price
-        )
+        ))
+
+    Upload.objects.bulk_create(uploads)
 
     return JsonResponse({"message": "success"})
 

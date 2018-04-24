@@ -97,10 +97,10 @@ class LRUCache(object):
 
         return None
 
-    def entry(self, key, data):
+    def entry(self, key, data=None):
         old_key = None
         if self.contains(key):
-            self.dll.remove_by_node(self.hm[key])
+            self.dll.remove_by_node(self.hm[key]["node"])
             del self.hm[key]
         elif self.dll.length == self.size:
             old_tail = self.dll.remove_tail()

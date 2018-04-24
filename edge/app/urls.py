@@ -2,6 +2,7 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
+    url(r'^initiate_sync', views.initiate_sync, name='initiate_sync'),
     url(r'^historical_backend', views.historical_backend, name='historical_backend'),
     url(r'^historical', views.historical, name='historical'),
     url(r'^backend_sync', views.backend_sync, name='backend_sync'),
