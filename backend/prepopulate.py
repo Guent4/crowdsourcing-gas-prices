@@ -6,6 +6,8 @@ import sys
 
 from geopy import units
 
+from django.utils import timezone
+
 
 def get_bounding_box(latitude, longitude, distancekm):
     rough_distance = units.degrees(arcminutes=units.nautical(kilometers=distancekm)) * 2
@@ -66,7 +68,7 @@ def populate_database(num_locations, distance_range):
             uploads.append(Upload(
                 latitude=latitude,
                 longitude=longitude,
-                timestamp=datetime.datetime.now() + datetime.timedelta(days=random.randint(-5, 0), hours=random.randint(-24, 0)),
+                timestamp=timezone.now() + datetime.timedelta(days=random.randint(-5, 0), hours=random.randint(-24, 0)),
                 station=station,
                 price=round(random.uniform(0, 5), 2)
             ))
@@ -84,4 +86,11 @@ if __name__ == '__main__':
     import django
     django.setup()
     from app.models import Company, Image, Station, Upload
-    populate_database(int(sys.argv[1]), int(sys.argv[2]))
+
+    if len(sys.argv) == 1:
+        num_locations = 100
+        distance_range = 10
+    else:
+        num_locations = int(sys.argv[1])
+        distance_range = int(sys.argv[2])
+    populate_database(num_locations, distance_range)

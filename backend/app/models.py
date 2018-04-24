@@ -28,7 +28,7 @@ class Station(models.Model):
 
 class Upload(models.Model):
     uploadid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField()
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
     station = models.ForeignKey(
