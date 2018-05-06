@@ -13,6 +13,7 @@ import uuid
 import json
 
 import constants
+import price_verifier
 import dateutil.parser
 import requests
 from app import cache
@@ -25,7 +26,6 @@ from django.core.files.storage import default_storage
 from geopy import units
 
 
-# Decorators
 def valid_request_methods(methods):
     """
     Decorator for checking to make sure got the right HTTP method
@@ -79,6 +79,57 @@ def get_station_from_lat_long_companyname(latitude, longitude, distancekm, compa
     return company, station
 
 
+def request_historical(latitude, longitude, companyname):
+    # Make request to the /historical endpoint on the backend
+    data = {"latitude": latitude, "longitude": longitude, "companyname": companyname}
+
+    # Find the specified station and
+    _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+    # See if edge doesn't contains the historical data
+    historical = []
+    if station is None:
+        return historical
+    elif historic_cache.contains(station.stationid):
+        for upload in Upload.objects.filter(station=station):
+            historical.append({
+                "latitude": str(upload.latitude),
+                "longitude": str(upload.longitude),
+                "timestamp": upload.timestamp.isoformat(),
+                "price": upload.price,
+                "companyname": upload.station.company.companyname
+            })
+    else:
+        r = requests.get(url="{}/historical".format(constants.BACKEND_ENDPOINT), params=urllib.urlencode(data))
+        historical = json.loads(r.content)["data"]
+
+        uploads = []
+        for u in historical:
+            latitude = float(u["latitude"])
+            longitude = float(u["longitude"])
+            timestamp = dateutil.parser.parse(u["timestamp"])
+            price = float(u["price"])
+
+            # Create the upload
+            uploads.append(Upload(
+                latitude=latitude,
+                longitude=longitude,
+                timestamp=timestamp,
+                station=station,
+                price=price
+            ))
+
+        Upload.objects.bulk_create(uploads)
+
+    # Sort it
+    historical = list(sorted(historical, key=lambda x: x["timestamp"]))
+
+    # Mark in cache
+    historic_cache.entry(station.stationid)
+
+    return historical
+
+
 # Create your views here.
 @csrf_exempt
 def index(request):
@@ -87,7 +138,7 @@ def index(request):
 
 
 @valid_request_methods(["GET"])
-def initiate_sync(request):
+def get_initiate_sync(request):
     """ THIS ISN'T AN EXPOSED ENDPOINT """
     try:
         all_uploads = Upload.objects.all()
@@ -149,7 +200,7 @@ def initiate_sync(request):
 
 
 @valid_request_methods(["GET"])
-def map(request):
+def get_map(request):
     user_latitude = float(request.GET["latitude"])
     user_longitude = float(request.GET["longitude"])
     user_range = float(request.GET["range"])
@@ -177,7 +228,7 @@ def map(request):
 
 
 @valid_request_methods(["GET"])
-def company_mapping(request):
+def get_company_mapping(request):
     resp = []
     for company in Company.objects.all():
         resp.append({"companyid": company.companyid, "companyname": company.companyname})
@@ -187,69 +238,19 @@ def company_mapping(request):
 
 
 @valid_request_methods(["GET"])
-def historical(request):
+def get_historical(request):
     latitude = float(request.GET["latitude"])
     longitude = float(request.GET["longitude"])
     companyname = request.GET["companyname"]
 
-    # Find the specified station and
-    _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+    historical = request_historical(latitude, longitude, companyname)
 
-    if station is None:
-        return JsonResponse({"data": []})
-
-    # See if edge doesn't contains the historical data
-    historic = []
-    if historic_cache.contains(station.stationid):
-        for upload in Upload.objects.filter(station=station):
-            historic.append({
-                "latitude": str(upload.latitude),
-                "longitude": str(upload.longitude),
-                "timestamp": upload.timestamp.isoformat(),
-                "price": upload.price,
-                "companyname": upload.station.company.companyname
-            })
-    else:
-        # Make request to the /edge_historical endpoint on the backend
-        data = {"latitude": latitude, "longitude": longitude, "companyname": companyname}
-        r = requests.get(url="{}/edge_historical".format(constants.BACKEND_ENDPOINT), params=urllib.urlencode(data))
-        historic = json.loads(r.content)["data"]
-        uploads = []
-        station = None
-        for u in historic:
-            latitude = float(u["latitude"])
-            longitude = float(u["longitude"])
-            timestamp = dateutil.parser.parse(u["timestamp"])
-            companyname = u["companyname"]
-            price = float(u["price"])
-
-            # Get (or insert) company and station
-            if station is None:
-                _, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
-
-            # Create the upload
-            uploads.append(Upload(
-                latitude=latitude,
-                longitude=longitude,
-                timestamp=timestamp,
-                station=station,
-                price=price
-            ))
-
-        Upload.objects.bulk_create(uploads)
-
-    # Sort it
-    historic = list(sorted(historic, key=lambda x: x["timestamp"]))
-
-    # Mark in cache
-    historic_cache.entry(station.stationid)
-
-    return JsonResponse({"data": historic})
+    return JsonResponse({"data": historical})
 
 
 @csrf_exempt
 @valid_request_methods(["POST"])
-def upload_gas_price(request):
+def post_upload_gas_price(request):
     data = json.loads(request.body)
 
     # Parse out the data
@@ -262,6 +263,14 @@ def upload_gas_price(request):
 
     # Get (or insert) company and station
     company, station = get_station_from_lat_long_companyname(latitude, longitude, constants.STATION_RADIUS, companyname)
+
+    # Get historical data
+    historical = request_historical(latitude, longitude, companyname)
+
+    # Run against some ML algorithm to determine if the price is reasoanble
+    valid = price_verifier.check_if_reasonable(price, historical)
+    if not valid:
+        return JsonResponse({"message": "failure"})
 
     # Deal with the image
     image_str_file = StringIO.StringIO()
@@ -297,7 +306,7 @@ def upload_gas_price(request):
 
 @csrf_exempt
 @valid_request_methods(["POST"])
-def backend_sync(request):
+def post_backend_sync(request):
     data = json.loads(request.body)
     uploads = data["uploads"]
 

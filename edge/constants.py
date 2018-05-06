@@ -1,4 +1,4 @@
-BACKEND_ENDPOINT = "https://honest-mule-83.localtunnel.me"               # URL to the backend server
+BACKEND_ENDPOINT = "ec2-18-219-0-22.us-east-2.compute.amazonaws.com"               # URL to the backend server
 
 STATION_RADIUS = 0.05               # km
 CACHE_SIZE = 2                      # Number of stations' historical data that can fit
