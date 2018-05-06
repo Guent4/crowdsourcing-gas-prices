@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import sys
+import numpy as np
 
 from django.utils import timezone
 from geopy import units
@@ -63,11 +64,19 @@ def populate_database(num_locations, distance_range):
             longitude=longitude
         )
 
-        for _ in range(random.randint(2, 5)):
+        num_points = 5
+        # num_points = random.randint(2, 5)
+        day_deltas = sorted(random.sample(range(-6, 0), num_points))
+
+        price_deltas = np.round(np.random.uniform(low=-0.1, high=0.1, size=(num_points,)), 2)
+
+        for i in range(num_points):
+            price += price_deltas[i]
+            price = round(price, 2)
             uploads.append(Upload(
                 latitude=latitude,
                 longitude=longitude,
-                timestamp=timezone.now() + datetime.timedelta(days=random.randint(-5, 0), hours=random.randint(-24, 0)),
+                timestamp=timezone.now() + datetime.timedelta(days=day_deltas[i]),
                 station=station,
                 price=price
             ))
@@ -87,8 +96,8 @@ if __name__ == '__main__':
     from app.models import Company, Image, Station, Upload
 
     if len(sys.argv) == 1:
-        num_locations = 100
-        distance_range = 10
+        num_locations = 400
+        distance_range = 100
     else:
         num_locations = int(sys.argv[1])
         distance_range = int(sys.argv[2])
