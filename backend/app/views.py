@@ -13,6 +13,8 @@ import StringIO
 import dateutil.parser
 import base64
 from django.core.files import File
+from django.utils import timezone
+import datetime
 
 def valid_request_methods(methods):
     """
@@ -178,7 +180,7 @@ def edge_update(request):
     return JsonResponse({"data": resp})
 
 
-def edge_historical(request):
+def historical(request):
     user_latitude = float(request.GET['latitude'])
     user_longitude = float(request.GET['longitude'])
     company_name = request.GET["companyname"]
@@ -187,7 +189,8 @@ def edge_historical(request):
     uploads_about_station = Upload.objects.filter(
         station__company__companyname__contains=company_name,
         latitude__range=(min_latitude, max_latitude),
-        longitude__range=(min_longitude, max_longitude)
+        longitude__range=(min_longitude, max_longitude),
+        timestamp__gte=timezone.now()-datetime.timedelta(days=7)
     )
     resp = []
     for o in uploads_about_station:
