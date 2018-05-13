@@ -4,7 +4,6 @@ import shutil
 import sys
 
 import django
-from django.core.files import File
 from django.utils import timezone
 from geopy import units
 
@@ -21,18 +20,7 @@ def get_bounding_box(latitude, longitude, distancekm):
     return latitude - rough_distance, latitude + rough_distance, longitude - rough_distance, longitude + rough_distance
 
 
-def wipe_everything():
-    # delete all rows
-    Company.objects.all().delete()
-    Image.objects.all().delete()
-    Station.objects.all().delete()
-    Upload.objects.all().delete()
-
-    if os.path.exists("media"):
-        shutil.rmtree("media")
-
-
-def populate_map_with_density(num_stations):
+def populate_map_with_density(num_stations, range):
     # delete all rows
     Company.objects.all().delete()
     Image.objects.all().delete()
@@ -74,41 +62,7 @@ def populate_map_with_density(num_stations):
     Upload.objects.bulk_create(uploads)
 
 
-def populate_upload():
-    # delete all rows
-    Company.objects.all().delete()
-    Image.objects.all().delete()
-    Station.objects.all().delete()
-    Upload.objects.all().delete()
-
-    if os.path.exists("media"):
-        shutil.rmtree("media")
-
-    # Used for location randomization
-    latitude_min, latitude_max, longitude_min, longitude_max = get_bounding_box(LATITUDE, LONGITUDE, RANGE)
-
-    # Create the one station that the upload will be to
-    latitude = random.uniform(latitude_min, latitude_max)
-    longitude = random.uniform(longitude_min, longitude_max)
-
-    company, _ = Company.objects.get_or_create(
-        companyname="exxon"
-    )
-
-    station, _ = Station.objects.get_or_create(
-        company=company,
-        latitude=latitude,
-        longitude=longitude
-    )
-
-
-def populate_images(num_images):
-    # delete all rows
-    Company.objects.all().delete()
-    Image.objects.all().delete()
-    Station.objects.all().delete()
-    Upload.objects.all().delete()
-
+def populate_map_with_extra_point():
     companyname = "exxon"
     latitude = LATITUDE
     longitude = LONGITUDE
@@ -124,39 +78,30 @@ def populate_images(num_images):
         longitude=longitude
     )
 
-    # Use the same modified image
-    sample_image_path = os.path.join('prepopulate_data', 'modified.jpg')
-    image = Image()
-    image.imagefield.save('modified.jpg', File(open(sample_image_path, 'rb')))
-
-    uploads = []
-    for _ in range(num_images):
-        uploads.append(Upload(
-            latitude=latitude,
-            longitude=longitude,
-            timestamp=timezone.now(),
-            station=station,
-            price=price,
-            image=image
-        ))
-    Upload.objects.bulk_create(uploads)
+    Upload.objects.get_or_create(
+        latitude=latitude,
+        longitude=longitude,
+        timestamp=timezone.now(),
+        station=station,
+        price=price
+    )
 
 
 # Start execution here!
 if __name__ == '__main__':
     reload(sys)
     sys.setdefaultencoding("utf-8")
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'edge.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 
     django.setup()
     from app.models import Company, Image, Station, Upload
     if sys.argv[1] == "map_scarce":
-        populate_map_with_density(5)
+        pass
     elif sys.argv[1] == "map_dense":
-        populate_map_with_density(200)
+        pass
     elif sys.argv[1] == "upload_unmodified" or sys.argv[1] == "upload_modified":
-        wipe_everything()
+        pass
     elif sys.argv[1] == "initiate_sync":
-        populate_images(100000)
+        populate_map_with_density(200000, 100000)
     else:
         raise NotImplemented(sys.argv[1])

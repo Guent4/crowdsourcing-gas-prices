@@ -4,7 +4,6 @@ import sys
 import time
 import urllib
 
-import datetime
 import requests
 from django.utils import timezone
 
@@ -53,7 +52,7 @@ def evaluate_upload(image_path):
     data = {
         "latitude": LATITUDE,
         "longitude": LONGITUDE,
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": timezone.now().isoformat(),
         "price": 2.48,
         "companyname": "exxon",
         "image": base64.b64encode(open(image_path, "rb").read())
@@ -69,6 +68,17 @@ def evaluate_upload(image_path):
     print("upload\t{}".format(duration))
 
 
+def evaluate_sync():
+    time_start = time.time()
+    r = requests.get(url="{}/initiate_sync".format(EDGE_URL))
+    duration = round(time.time() - time_start, 4)
+
+    message = json.loads(r.content)["message"]
+    assert message == "success"
+
+    print("initiate_sync\t{}".format(duration))
+
+
 if __name__ == "__main__":
     for _ in range(1 if len(sys.argv) <= 2 else int(sys.argv[2])):
         if sys.argv[1] == "map_scarce":
@@ -79,5 +89,7 @@ if __name__ == "__main__":
             evaluate_upload("unmodified.jpg")
         elif sys.argv[1] == "upload_modified":
             evaluate_upload("modified.jpg")
+        elif sys.argv[1] == "initiate_sync":
+            evaluate_sync()
         else:
             raise NotImplementedError
