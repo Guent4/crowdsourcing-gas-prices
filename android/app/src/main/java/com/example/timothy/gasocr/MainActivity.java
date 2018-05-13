@@ -49,8 +49,6 @@ public class MainActivity extends AppCompatActivity {
     Button captureButton;
     Button mapButton;
     EditText priceRegularText;
-    EditText pricePremiumText;
-    EditText priceDieselText;
     EditText companyName;
     Camera camera;
     FrameLayout frameLayout;
@@ -80,8 +78,6 @@ public class MainActivity extends AppCompatActivity {
         frameLayout = findViewById(R.id.frameLayout);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         priceRegularText = findViewById(R.id.editText);
-       // pricePremiumText = findViewById(R.id.editText2);
-       // priceDieselText = findViewById(R.id.editText3);
         companyName = findViewById(R.id.editText4);
 
         obtainLocation();
@@ -135,20 +131,16 @@ public class MainActivity extends AppCompatActivity {
                     paint.setColorFilter(new ColorMatrixColorFilter(cm));
                     c.drawBitmap(bitmap, 0, 0, paint);
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                    grayscaled.compress(Bitmap.CompressFormat.JPEG, 80, stream);
+                    grayscaled.compress(Bitmap.CompressFormat.JPEG, 40, stream);
 
                     TimeZone tz = TimeZone.getTimeZone("UTC");
                     DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
                     df.setTimeZone(tz);
                     timestamp = df.format(new Date());
                     String regularPrice = priceRegularText.getText().toString();
-                    String premiumPrice = pricePremiumText.getText().toString();
-                    String dieselPrice = priceDieselText.getText().toString();
-                    prices = "Reg: " + regularPrice + "Pre: " + premiumPrice + "Dies: " + dieselPrice;
+                    prices = "Reg: " + regularPrice;
                     postPrice = priceRegularText.getText().toString();
                     company = companyName.getText().toString();
-                    //TODO: change url
-                   // url = "https://"+ companyName.getText().toString() + ".localtunnel.me/upload_gas_price";
                     byte[] imageRep = stream.toByteArray();
                     imageRepresentation = Base64.encodeToString(imageRep, Base64.DEFAULT);
                     sendPOSTRequest();
