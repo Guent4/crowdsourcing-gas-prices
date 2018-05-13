@@ -185,7 +185,7 @@ def historical(request):
     user_longitude = float(request.GET['longitude'])
     company_name = request.GET["companyname"]
     
-    min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(user_latitude, user_longitude, 10)
+    min_latitude, max_latitude, min_longitude, max_longitude = get_bounding_box(user_latitude, user_longitude, 0.05)
     uploads_about_station = Upload.objects.filter(
         station__company__companyname__contains=company_name,
         latitude__range=(min_latitude, max_latitude),

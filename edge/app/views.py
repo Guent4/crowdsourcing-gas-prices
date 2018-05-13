@@ -130,7 +130,7 @@ def request_historical(latitude, longitude, companyname):
     old = historic_cache.entry(station.stationid)
     if old is not None:
         old_station, _ = Station.objects.get_or_create(stationid=old)
-        Upload.objects.filter(image__isnull=False, station=old_station).order_by("-timestamp")[1:].delete()
+        Upload.objects.filter(pk__in=Upload.objects.filter(image__isnull=False, station=old_station).order_by("-timestamp")[1:]).delete()
 
     return historical
 
