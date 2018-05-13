@@ -110,14 +110,16 @@ def request_historical(latitude, longitude, companyname):
             timestamp = dateutil.parser.parse(u["timestamp"])
             price = float(u["price"])
 
-            # Create the upload
-            uploads.append(Upload(
-                latitude=latitude,
-                longitude=longitude,
-                timestamp=timestamp,
-                station=station,
-                price=price
-            ))
+            # Don't add duplicates
+            if len(Upload.objects.filter(station=station, timestamp=timestamp, price=price)) == 0:
+                # Create the upload
+                uploads.append(Upload(
+                    latitude=latitude,
+                    longitude=longitude,
+                    timestamp=timestamp,
+                    station=station,
+                    price=price
+                ))
 
         Upload.objects.bulk_create(uploads)
 
@@ -127,8 +129,8 @@ def request_historical(latitude, longitude, companyname):
     # Mark in cache and clear old cache data
     old = historic_cache.entry(station.stationid)
     if old is not None:
-        station, _ = Station.objects.get_or_create(stationid=old)
-        Upload.objects.filter(image__isnull=False, station=station).order_by("-timestamp")[1:].delete()
+        old_station, _ = Station.objects.get_or_create(stationid=old)
+        Upload.objects.filter(image__isnull=False, station=old_station).order_by("-timestamp")[1:].delete()
 
     return historical
 
