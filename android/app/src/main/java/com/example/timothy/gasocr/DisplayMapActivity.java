@@ -119,6 +119,7 @@ public class DisplayMapActivity extends AppCompatActivity implements GoogleMap.O
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMinZoomPreference(9);
         LatLng yourPosition = new LatLng(Double.parseDouble(latitude), Double.parseDouble(longitude));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(yourPosition));
         mMap.addMarker(new MarkerOptions().position(yourPosition).title("Your Position"));
@@ -211,7 +212,7 @@ public class DisplayMapActivity extends AppCompatActivity implements GoogleMap.O
                     Double lat = Double.parseDouble(firstPoint.getString("latitude"));
                     Double lon = Double.parseDouble(firstPoint.getString("longitude"));
                     String price = firstPoint.getString("price");
-                    String time = firstPoint.getString("timestamp").substring(0,11);
+                    String time = firstPoint.getString("timestamp").substring(0,10);
                     String company = firstPoint.getString("companyname");
                     LatLng pos = new LatLng(lat, lon);
 
