@@ -40,7 +40,7 @@
 
         <activity
             android:name=".HistoricalData"
-            android:parentActivityName=".MainActivity">
+            android:parentActivityName=".DisplayMapActivity">
         </activity>
 
     </application>

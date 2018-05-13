@@ -1,8 +1,11 @@
 package com.example.timothy.gasocr;
 
+import android.content.Context;
 import android.content.Intent;
 import android.hardware.Camera;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -33,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 
@@ -56,6 +60,46 @@ public class DisplayMapActivity extends AppCompatActivity implements GoogleMap.O
         url = "http://ec2-18-191-6-17.us-east-2.compute.amazonaws.com/map";
         Intent intent = getIntent();
         location = intent.getStringExtra(MainActivity.EXTRA_MESSAGE);
+
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (location == null) {
+            List<String> providers = locationManager.getProviders(true);
+            try {
+                for (String provider : providers) {
+                    locationManager.requestLocationUpdates(provider, 1000, 0,
+                            new LocationListener() {
+                                public void onLocationChanged(Location loc) {
+                                    location = "loc:" + loc.getLongitude() + "," + loc.getLatitude();
+                                    longitude = loc.getLongitude() + "";
+                                    latitude = loc.getLatitude() + "";
+                                }
+
+                                public void onProviderDisabled(String provider) {
+                                }
+
+                                public void onProviderEnabled(String provider) {
+                                }
+
+                                public void onStatusChanged(String provider, int status, Bundle extras) {
+                                }
+                            });
+                }
+            } catch (SecurityException se) {
+                se.printStackTrace();
+            }
+        }
+
+        if (location == null) {
+            try {
+                Location loc = locationManager.getLastKnownLocation(locationManager.GPS_PROVIDER);
+                location = "loc:" + loc.getLongitude() + "," + loc.getLatitude();
+                longitude = loc.getLongitude() + "";
+                latitude = loc.getLatitude() + "";
+            } catch (SecurityException se) {
+                se.printStackTrace();
+            }
+        }
+
         longitude = location.substring(location.indexOf(":")+1,location.indexOf(","));
         latitude = location.substring(location.indexOf(",")+1);
         lastTime = (double) new Date().getTime();
