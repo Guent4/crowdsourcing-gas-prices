@@ -124,8 +124,11 @@ def request_historical(latitude, longitude, companyname):
     # Sort it
     historical = list(sorted(historical, key=lambda x: x["timestamp"]))
 
-    # Mark in cache
-    historic_cache.entry(station.stationid)
+    # Mark in cache and clear old cache data
+    old = historic_cache.entry(station.stationid)
+    if old is not None:
+        station, _ = Station.objects.get_or_create(stationid=old)
+        Upload.objects.filter(image__isnull=False, station=station).order_by("-timestamp")[1:].delete()
 
     return historical
 

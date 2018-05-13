@@ -4,10 +4,11 @@ import sys
 import time
 import urllib
 
+import datetime
 import requests
 from django.utils import timezone
 
-EDGE_URL = "https://wonderful-elephant-52.localtunnel.me"
+EDGE_URL = "https://ordinary-horse-28.localtunnel.me"
 
 LATITUDE = 42.442445
 LONGITUDE = -76.485146
@@ -52,7 +53,7 @@ def evaluate_upload(image_path):
     data = {
         "latitude": LATITUDE,
         "longitude": LONGITUDE,
-        "timestamp": timezone.now().isoformat(),
+        "timestamp": datetime.datetime.now().isoformat(),
         "price": 2.48,
         "companyname": "exxon",
         "image": base64.b64encode(open(image_path, "rb").read())
