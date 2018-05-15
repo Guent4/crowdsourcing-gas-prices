@@ -6,9 +6,10 @@ import urllib
 
 import datetime
 import requests
+import subprocess
 from django.utils import timezone
 
-EDGE_URL = "https://ordinary-horse-28.localtunnel.me"
+EDGE_URL = "http://127.0.0.1:8000"
 
 LATITUDE = 42.442445
 LONGITUDE = -76.485146

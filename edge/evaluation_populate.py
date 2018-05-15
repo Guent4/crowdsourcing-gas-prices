@@ -125,7 +125,7 @@ def populate_images(num_images):
     )
 
     # Use the same modified image
-    sample_image_path = os.path.join('prepopulate_data', 'modified.jpg')
+    sample_image_path = os.path.join('prepopulate_data', 'prepopulate_sign.jpg')
     image = Image()
     image.imagefield.save('modified.jpg', File(open(sample_image_path, 'rb')))
 
@@ -157,6 +157,6 @@ if __name__ == '__main__':
     elif sys.argv[1] == "upload_unmodified" or sys.argv[1] == "upload_modified":
         wipe_everything()
     elif sys.argv[1] == "initiate_sync":
-        populate_images(100000)
+        populate_images(1000)
     else:
         raise NotImplemented(sys.argv[1])

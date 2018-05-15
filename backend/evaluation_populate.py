@@ -20,7 +20,7 @@ def get_bounding_box(latitude, longitude, distancekm):
     return latitude - rough_distance, latitude + rough_distance, longitude - rough_distance, longitude + rough_distance
 
 
-def populate_map_with_density(num_stations, range):
+def populate_map_with_density(num_stations, rng):
     # delete all rows
     Company.objects.all().delete()
     Image.objects.all().delete()
@@ -31,7 +31,7 @@ def populate_map_with_density(num_stations, range):
         shutil.rmtree("media")
 
     # Used for location randomization
-    latitude_min, latitude_max, longitude_min, longitude_max = get_bounding_box(LATITUDE, LONGITUDE, RANGE)
+    latitude_min, latitude_max, longitude_min, longitude_max = get_bounding_box(LATITUDE, LONGITUDE, rng)
 
     uploads = []
     for _ in range(num_stations):
@@ -102,6 +102,6 @@ if __name__ == '__main__':
     elif sys.argv[1] == "upload_unmodified" or sys.argv[1] == "upload_modified":
         pass
     elif sys.argv[1] == "initiate_sync":
-        populate_map_with_density(200000, 100000)
+        populate_map_with_density(2000, 1000)
     else:
         raise NotImplemented(sys.argv[1])
