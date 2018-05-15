@@ -158,5 +158,7 @@ if __name__ == '__main__':
         wipe_everything()
     elif sys.argv[1] == "initiate_sync":
         populate_images(1000)
+    elif sys.argv[1] == "cache":
+        wipe_everything()
     else:
         raise NotImplemented(sys.argv[1])
