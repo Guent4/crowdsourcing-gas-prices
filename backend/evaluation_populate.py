@@ -6,6 +6,7 @@ import sys
 import django
 from django.utils import timezone
 from geopy import units
+import datetime
 
 LATITUDE = 42.442445
 LONGITUDE = -76.485146
